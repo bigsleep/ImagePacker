@@ -20,7 +20,12 @@ executable ImagePacker
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.9,
+                       array,
+                       containers,
+                       transformers,
+                       directory,
                        filepath,
+                       filemanip,
                        optparse-declarative >= 0.3 && <0.4,
                        JuicyPixels
   hs-source-dirs:      src
