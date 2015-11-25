@@ -3,5 +3,6 @@ extra-package-dbs: []
 packages:
 - '.'
 extra-deps:
+- JuicyPixels-util-0.2
 - optparse-declarative-0.3.0
 resolver: lts-3.2

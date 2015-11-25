@@ -1,10 +1,14 @@
-{-# LANGUAGE DataKinds, FlexibleContexts #-}
+{-# LANGUAGE DataKinds, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
 module Main where
 
 import qualified Codec.Picture as Picture
 import qualified Codec.Picture.Metadata as Picture
+import qualified Codec.Picture.Types as Picture
+import qualified Codec.Picture.RGBA8 as Picture (fromDynamicImage)
 
-import Data.Array.IArray (Array)
+import Control.Monad.Primitive (PrimState)
+
+import Data.Array.IArray (Array, (!))
 import qualified Data.Array.IArray as Array
 import qualified Data.Either as Either
 import Data.Map.Strict (Map)
@@ -79,3 +83,25 @@ pack textureSize =
     insertsMap rects m = foldr (\rect -> Map.insertWith (++) (value rect) [rect]) m rects
 
     third (_, _, a) = a
+
+
+writeTexture :: FilePath -> (Int, Int) -> [Location Int] -> Array Int Picture.DynamicImage -> IO ()
+writeTexture destination (width, height) locations sources =
+    do
+        texture <- Picture.newMutableImage width height
+        mapM_ (render texture) locations
+
+    where
+    render :: Picture.MutableImage (PrimState IO) Picture.PixelRGBA8 -> Location Int -> IO ()
+    render texture location =
+        writePixels texture (position location) $
+        sources ! value location
+
+    writePixels texture (ox, oy) img =
+        let img' = Picture.fromDynamicImage img
+            w = Picture.imageWidth img'
+            h = Picture.imageHeight img'
+        in  mapM_
+                (\(x, y, a) -> Picture.writePixel texture (ox + x) (oy + y) a)
+                [(x, y, Picture.pixelAt img' x y) | x <- [0..(w - 1)], y <- [0..(h - 1)]]
+
