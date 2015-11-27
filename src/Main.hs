@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, FlexibleContexts, FlexibleInstances, MultiParamTypeClasses, UndecidableInstances #-}
+{-# LANGUAGE DataKinds, FlexibleContexts #-}
 module Main where
 
 import qualified Codec.Picture as Picture
@@ -22,19 +22,16 @@ import System.FilePath.Find ((==?), (&&?))
 import qualified System.FilePath.Find as FManip
 
 main :: IO ()
-main = putStrLn "hello"
-{-
+main =
  do
     imgs <- loadFiles =<< listFilePaths ".png" "tmp"
     let sizes = Array.amap (Picture.dynamicMap (\x -> (Picture.imageWidth x, Picture.imageHeight x))) imgs
-    let textureSize = (2048, 2048)
-    let locations = pack textureSize sizes
-    let pages = List.groupBy (\a b -> page a == page b) locations
+    let textureSize = (256, 256)
+    let rects = packImages textureSize sizes
     print (Array.assocs sizes)
-    print locations
-    print pages
-    writeTexture "test.png" textureSize (head pages) imgs
--}
+    print (length rects)
+    print rects
+    mapM_ (\(i, rect) -> writeTexture imgs ("test" ++ show i ++ ".png") textureSize rect) ([0..] `zip` rects)
 
 
 listFilePaths :: String -> FilePath -> IO [FilePath]
@@ -60,63 +57,66 @@ packImages
     -> Array Int (Int, Int)
     -> [Rect Int]
 packImages textureSize =
-    List.foldl' pack [] . Array.assocs
+    List.foldl' pack [] . sortInputs . Array.assocs
 
     where
     pack :: [Rect Int] -> (Int, (Int, Int)) -> [Rect Int]
     pack rects a =
-        rect (0, 0) textureSize a : rects `Maybe.fromMaybe` tryPack a rects
+        Maybe.fromMaybe (newRect (0, 0) textureSize a : rects) (tryPack a rects)
 
-    rect (x, y) (rw, rh) (index, (w, h)) =
-        let childR = Rect (x + w, y) (rw - w, h) Nothing
-            childB = Rect (x, y + h) (w, rh - h) Nothing
-        in Rect (x, y) (rw, rh) (Just (index, childR, childB))
+    newRect (x, y) (rw, rh) (index, (w, h)) =
+        let (childL, childR) =
+                if rw - w >= rh - h
+                    then (Rect (x + w, y) (rw - w, rh) Nothing, Rect (x, y + h) (w, rh - h) Nothing)
+                    else (Rect (x, y + h) (rw, rh - h) Nothing, Rect (x + w, y) (rw - w, h) Nothing)
+
+        in Rect (x, y) (rw, rh) (Just (index, childL, childR))
 
     tryPack a [] = Nothing
 
     tryPack a (r : rs) =
-        case tryPackOne a r of
-            Just r' -> Just (r' : rs)
-            Nothing -> (r :) `fmap` tryPack a rs
+        case tryPack a rs of
+            Just rs' -> Just (r : rs')
+            Nothing -> fmap (: rs) (tryPackOne a r)
 
     tryPackOne :: (Int, (Int, Int)) -> Rect Int -> Maybe (Rect Int)
 
     tryPackOne a @ (index, (w, h)) r @ (Rect _ (rw, rh) Nothing) =
-        if rw < w || rh < h
-            then Nothing
-            else Just $ rect (position r) (size r) a
+        if rw >= w && rh >= h
+            then Just $ newRect (position r) (size r) a
+            else Nothing
 
-    tryPackOne a @ (index, (w, h)) r @ (Rect _ (rw, rh) (Just (e, childR, childB))) =
-        if rw < w || rh < h
-            then Nothing
-            else
-                tryPackOne a childR >>= \childR' -> Just r { element = Just (e, childR', childB) }
-                `mplus`
-                tryPackOne a childB >>= \childB' -> Just r { element = Just (e, childR, childB') }
+    tryPackOne a r @ (Rect _ _ (Just (e, childL, childR))) =
+        mplus
+            (tryPackOne a childL >>= (\childL' -> Just r { element = Just (e, childL', childR) }))
+            (tryPackOne a childR >>= (\childR' -> Just r { element = Just (e, childL, childR') }))
+
+    sortInputs = List.sortBy (\(_, (lw, lh)) (_, (rw, rh)) -> compare (rw, rh) (lw, lh))
                 
 
-
-
-{-
-writeTexture :: FilePath -> (Int, Int) -> [Location Int] -> Array Int Picture.DynamicImage -> IO ()
-writeTexture destination (width, height) locations sources =
+writeTexture :: Array Int Picture.DynamicImage -> FilePath -> (Int, Int) -> Rect Int -> IO ()
+writeTexture sources destination (width, height) rect =
     do
-        texture <- Picture.newMutableImage width height
-        mapM_ (render texture) locations
+        texture <- Picture.createMutableImage width height background
+        render texture rect
         Picture.writePng destination =<< Picture.freezeImage texture
 
     where
-    render :: Picture.MutableImage (PrimState IO) Picture.PixelRGBA8 -> Location Int -> IO ()
-    render texture location =
-        writePixels texture (position location) $
-        sources ! value location
+    background = Picture.PixelRGBA8 (toEnum 0) (toEnum 0) (toEnum 0) (toEnum 0)
+
+    render :: Picture.MutableImage (PrimState IO) Picture.PixelRGBA8 -> Rect Int -> IO ()
+    render texture r @ (Rect p s (Just (e, childR, childB))) =
+        do
+            writePixels texture p $ sources ! e
+            render texture childR
+            render texture childB
+    render _ _ = return ()
 
     writePixels texture (ox, oy) img =
         let img' = Picture.fromDynamicImage img
             w = Picture.imageWidth img'
             h = Picture.imageHeight img'
+            black = Picture.PixelRGBA8 (toEnum 0) (toEnum 0) (toEnum 0) (toEnum 255)
         in  mapM_
                 (\(x, y, a) -> Picture.writePixel texture (ox + x) (oy + y) a)
-                [(x, y, Picture.pixelAt img' x y) | x <- [0..(w - 1)], y <- [0..(h - 1)]]
-
--}
+                [(x, y, if x == 0 || x == 1 || x == w - 2 || x == w - 1 || y == 0 || y == 1 || y == h - 2 || y == h - 1 then black  else Picture.pixelAt img' x y) | x <- [0..(w - 1)], y <- [0..(h - 1)]]
