@@ -16,10 +16,11 @@ build-type:          Simple
 cabal-version:       >=1.10
 
 executable ImagePacker
-  main-is:             Main.hs
+  main-is:             ImagePacker.hs
   -- other-modules:       
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.9,
+                       text,
                        array,
                        containers,
                        transformers,
@@ -29,6 +30,6 @@ executable ImagePacker
                        filemanip,
                        optparse-declarative,
                        JuicyPixels,
-                       JuicyPixels-util
-  hs-source-dirs:      src
+                       JuicyPixels-util,
+                       hastache
   default-language:    Haskell2010

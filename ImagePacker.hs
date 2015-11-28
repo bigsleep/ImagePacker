@@ -1,6 +1,4 @@
-{-# LANGUAGE DataKinds, FlexibleContexts #-}
-module Main where
-
+{-# LANGUAGE DataKinds, FlexibleContexts, BangPatterns #-}
 import qualified Codec.Picture as Picture
 import qualified Codec.Picture.Types as Picture
 import qualified Codec.Picture.RGBA8 as Picture (fromDynamicImage)
@@ -62,7 +60,7 @@ packImages textureSize =
     where
     pack :: [Rect Int] -> (Int, (Int, Int)) -> [Rect Int]
     pack rects a =
-        Maybe.fromMaybe (newRect (0, 0) textureSize a : rects) (tryPack a rects)
+        Maybe.fromMaybe (rects ++ [newRect (0, 0) textureSize a]) (tryPack a rects)
 
     newRect (x, y) (rw, rh) (index, (w, h)) =
         let (childL, childR) =
@@ -75,9 +73,9 @@ packImages textureSize =
     tryPack a [] = Nothing
 
     tryPack a (r : rs) =
-        case tryPack a rs of
-            Just rs' -> Just (r : rs')
-            Nothing -> fmap (: rs) (tryPackOne a r)
+        case tryPackOne a r of
+            Just r' -> Just (r' : rs)
+            Nothing -> fmap (r :) (tryPack a rs)
 
     tryPackOne :: (Int, (Int, Int)) -> Rect Int -> Maybe (Rect Int)
 
@@ -97,9 +95,12 @@ packImages textureSize =
 writeTexture :: Array Int Picture.DynamicImage -> FilePath -> (Int, Int) -> Rect Int -> IO ()
 writeTexture sources destination (width, height) rect =
     do
-        texture <- Picture.createMutableImage width height background
+        texture <- Picture.newMutableImage width height
+        initializeTexture texture
         render texture rect
-        Picture.writePng destination =<< Picture.freezeImage texture
+        !img <- Picture.freezeImage texture
+        Picture.writePng destination img
+        return ()
 
     where
     background = Picture.PixelRGBA8 (toEnum 0) (toEnum 0) (toEnum 0) (toEnum 0)
@@ -120,3 +121,8 @@ writeTexture sources destination (width, height) rect =
         in  mapM_
                 (\(x, y, a) -> Picture.writePixel texture (ox + x) (oy + y) a)
                 [(x, y, if x == 0 || x == 1 || x == w - 2 || x == w - 1 || y == 0 || y == 1 || y == h - 2 || y == h - 1 then black  else Picture.pixelAt img' x y) | x <- [0..(w - 1)], y <- [0..(h - 1)]]
+
+    initializeTexture texture =
+        mapM_
+            (\(x, y) -> Picture.writePixel texture x y background)
+            [(x, y) | x <- [0..(width - 1)], y <- [0..(height - 1)]]
