@@ -1,10 +1,12 @@
-{-# LANGUAGE DataKinds, FlexibleContexts, BangPatterns #-}
+{-# LANGUAGE DataKinds, FlexibleContexts, OverloadedStrings #-}
 import qualified Codec.Picture as Picture
 import qualified Codec.Picture.Types as Picture
 import qualified Codec.Picture.RGBA8 as Picture (fromDynamicImage)
 
 import Control.Monad (mplus)
-import Control.Monad.Primitive (PrimState)
+import Control.Monad.ST (RealWorld)
+
+import qualified Data.Aeson.Types as DA (Value(..))
 
 import Data.Array.IArray (Array, (!))
 import qualified Data.Array.IArray as Array
@@ -13,15 +15,28 @@ import qualified Data.List as List
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
+import qualified Data.HashMap.Strict as HM (fromList)
+import qualified Data.Text.Lazy.IO as LT (writeFile)
+import qualified Data.Vector as V (fromList)
 
 import Debug.Trace (trace)
 
 import System.FilePath.Find ((==?), (&&?))
 import qualified System.FilePath.Find as FManip
 
+import Text.EDE ((.=))
+import qualified Text.EDE as EDE (eitherParseFile, eitherRender, fromPairs)
+
 main :: IO ()
-main =
- do
+main = do
+    r <- EDE.eitherParseFile "templates/elm.ede"
+    either error (LT.writeFile "test.elm") $ r >>= (`EDE.eitherRender` env)
+
+    where
+    env = EDE.fromPairs [ "items" .= items ]
+    items = DA.Array . V.fromList $ [item, item, item, item]
+    item = DA.Object . EDE.fromPairs $ ["name" .= DA.String "test", "position" .= DA.String "(0,0)", "size" .= DA.String "(1,1)", "rotated" .= DA.String "False"]
+ {-
     imgs <- loadFiles =<< listFilePaths ".png" "tmp"
     let sizes = Array.amap (Picture.dynamicMap (\x -> (Picture.imageWidth x, Picture.imageHeight x))) imgs
     let textureSize = (256, 256)
@@ -30,6 +45,7 @@ main =
     print (length rects)
     print rects
     mapM_ (\(i, rect) -> writeTexture imgs ("test" ++ show i ++ ".png") textureSize rect) ([0..] `zip` rects)
+-}
 
 
 listFilePaths :: String -> FilePath -> IO [FilePath]
@@ -98,14 +114,12 @@ writeTexture sources destination (width, height) rect =
         texture <- Picture.newMutableImage width height
         initializeTexture texture
         render texture rect
-        !img <- Picture.freezeImage texture
-        Picture.writePng destination img
-        return ()
+        Picture.writePng destination =<< Picture.freezeImage texture
 
     where
     background = Picture.PixelRGBA8 (toEnum 0) (toEnum 0) (toEnum 0) (toEnum 0)
 
-    render :: Picture.MutableImage (PrimState IO) Picture.PixelRGBA8 -> Rect Int -> IO ()
+    render :: Picture.MutableImage RealWorld Picture.PixelRGBA8 -> Rect Int -> IO ()
     render texture r @ (Rect p s (Just (e, childR, childB))) =
         do
             writePixels texture p $ sources ! e
@@ -117,10 +131,9 @@ writeTexture sources destination (width, height) rect =
         let img' = Picture.fromDynamicImage img
             w = Picture.imageWidth img'
             h = Picture.imageHeight img'
-            black = Picture.PixelRGBA8 (toEnum 0) (toEnum 0) (toEnum 0) (toEnum 255)
         in  mapM_
                 (\(x, y, a) -> Picture.writePixel texture (ox + x) (oy + y) a)
-                [(x, y, if x == 0 || x == 1 || x == w - 2 || x == w - 1 || y == 0 || y == 1 || y == h - 2 || y == h - 1 then black  else Picture.pixelAt img' x y) | x <- [0..(w - 1)], y <- [0..(h - 1)]]
+                [(x, y, Picture.pixelAt img' x y) | x <- [0..(w - 1)], y <- [0..(h - 1)]]
 
     initializeTexture texture =
         mapM_

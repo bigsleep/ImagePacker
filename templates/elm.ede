@@ -1,0 +1,18 @@
+module Asset where
+
+type alias AssetInfo =
+    { name : String
+    , position : (Int, Int)
+    , size : (Int, Int)
+    , rotated : Bool
+    }
+
+assetInfos :: List AssetInfo
+assetInfos =
+    [{% for item in items %}{% if !item.first %}    ,{% endif %} { name = "{{ item.value.name }}"
+      , position = {{ item.value.position }}
+      , size = {{ item.value.size }}
+      , rotated = {{ item.value.rotated }}
+      }
+{% endfor %}
+    ]

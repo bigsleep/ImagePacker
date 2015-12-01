@@ -21,15 +21,17 @@ executable ImagePacker
   -- other-extensions:    
   build-depends:       base >=4.8 && <4.9,
                        text,
+                       vector,
                        array,
                        containers,
+                       unordered-containers,
                        transformers,
-                       primitive,
                        directory,
                        filepath,
                        filemanip,
                        optparse-declarative,
                        JuicyPixels,
                        JuicyPixels-util,
-                       hastache
+                       aeson,
+                       ede
   default-language:    Haskell2010
