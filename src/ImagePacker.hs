@@ -1,12 +1,17 @@
 {-# LANGUAGE DataKinds, FlexibleContexts, OverloadedStrings #-}
+module ImagePacker
+  ( loadFiles
+  , packImages
+  , writeTexture
+  , listPackedImageInfos
+  ) where
+
 import qualified Codec.Picture as Picture
 import qualified Codec.Picture.Types as Picture
 import qualified Codec.Picture.RGBA8 as Picture (fromDynamicImage)
 
 import Control.Monad (mplus)
 import Control.Monad.ST (RealWorld)
-
-import qualified Data.Aeson.Types as DA (Value(..))
 
 import Data.Array.IArray (Array, (!))
 import qualified Data.Array.IArray as Array
@@ -15,41 +20,11 @@ import qualified Data.List as List
 import Data.Map.Strict (Map)
 import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
-import qualified Data.HashMap.Strict as HM (fromList)
+
 import qualified Data.Text.Lazy.IO as LT (writeFile)
 import qualified Data.Vector as V (fromList)
 
-import Debug.Trace (trace)
-
-import System.FilePath.Find ((==?), (&&?))
-import qualified System.FilePath.Find as FManip
-
-import Text.EDE ((.=))
-import qualified Text.EDE as EDE (eitherParseFile, eitherRender, fromPairs)
-
-main :: IO ()
-main = do
-    r <- EDE.eitherParseFile "templates/elm.ede"
-    either error (LT.writeFile "test.elm") $ r >>= (`EDE.eitherRender` env)
-
-    where
-    env = EDE.fromPairs [ "items" .= items ]
-    items = DA.Array . V.fromList $ [item, item, item, item]
-    item = DA.Object . EDE.fromPairs $ ["name" .= DA.String "test", "position" .= DA.String "(0,0)", "size" .= DA.String "(1,1)", "rotated" .= DA.String "False"]
- {-
-    imgs <- loadFiles =<< listFilePaths ".png" "tmp"
-    let sizes = Array.amap (Picture.dynamicMap (\x -> (Picture.imageWidth x, Picture.imageHeight x))) imgs
-    let textureSize = (256, 256)
-    let rects = packImages textureSize sizes
-    print (Array.assocs sizes)
-    print (length rects)
-    print rects
-    mapM_ (\(i, rect) -> writeTexture imgs ("test" ++ show i ++ ".png") textureSize rect) ([0..] `zip` rects)
--}
-
-
-listFilePaths :: String -> FilePath -> IO [FilePath]
-listFilePaths ext = FManip.find (FManip.depth ==? 0) (FManip.extension ==? ext &&? FManip.fileType ==? FManip.RegularFile)
+import ImagePacker.Types (PackedImageInfo(PackedImageInfo))
 
 
 loadFiles :: [FilePath] -> IO (Array Int Picture.DynamicImage)
@@ -58,7 +33,6 @@ loadFiles filepaths
     . Array.listArray (0, length filepaths - 1)
     . Either.rights
     =<< mapM Picture.readImage filepaths
-
 
 data Rect a = Rect
     { position :: (Int, Int)
@@ -139,3 +113,16 @@ writeTexture sources destination (width, height) rect =
         mapM_
             (\(x, y) -> Picture.writePixel texture x y background)
             [(x, y) | x <- [0..(width - 1)], y <- [0..(height - 1)]]
+
+
+listPackedImageInfos :: Array Int FilePath -> [Rect Int] -> [PackedImageInfo]
+listPackedImageInfos sourceNames rects =
+    List.concatMap f ([0..] `zip` rects)
+
+    where
+    f (t, (Rect p s (Just (i, childL, childR)))) =
+        PackedImageInfo (sourceNames ! i) (textureName t) p s False : f (t, childL) ++ f (t, childR)
+
+    f _ = []
+
+    textureName t = "texture" ++ (show t) ++ ".png"
