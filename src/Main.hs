@@ -1,4 +1,4 @@
-{-# LANGUAGE DataKinds, OverloadedStrings #-}
+{-# LANGUAGE DataKinds, OverloadedStrings, TemplateHaskell #-}
 module Main where
 
 import qualified Codec.Picture as Picture
@@ -8,6 +8,8 @@ import Control.Monad.IO.Class (liftIO)
 
 import qualified Data.Aeson.Types as DA (ToJSON(..))
 import qualified Data.Array.IArray as Array
+import qualified Data.Either as Either
+import Data.FileEmbed (embedFile)
 import qualified Data.HashMap.Strict as HM (fromList)
 import qualified Data.Text.Lazy as LT (Text)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
@@ -21,9 +23,8 @@ import System.FilePath.Find ((==?), (&&?))
 import qualified System.FilePath.Find as FManip
 
 import Text.Printf (printf)
-
 import Text.EDE ((.=))
-import qualified Text.EDE as EDE (Template, eitherParseFile, eitherRender, fromPairs)
+import qualified Text.EDE as EDE (Template, eitherParse, eitherParseFile, eitherRender, fromPairs)
 
 
 main :: IO ()
@@ -43,6 +44,12 @@ renderPackedImageInfo template packedImageInfos =
     where
     value = EDE.fromPairs ["items" .= DA.toJSON packedImageInfos]
 
+
+templates :: [(String, EDE.Template)]
+templates = Either.rights $ map (\(name, bs) -> fmap ((,) name)  (EDE.eitherParse bs))
+    [ ("json", $(embedFile "templates/json.ede"))
+    , ("elm", $(embedFile "templates/elm.ede"))
+    ]
 
 
 imagePacker
@@ -68,7 +75,7 @@ imagePacker
         let sizes = Array.amap (Picture.dynamicMap (\x -> (Picture.imageWidth x, Picture.imageHeight x))) imgs
         let rects = ImagePacker.packImages textureSize sizes
         let fileNames = Array.listArray (0, (length inputFilePaths - 1)) . map takeFileName $ inputFilePaths
-        let packedImageInfos = ImagePacker.toPackedImageInfos fileNames rects
+        let packedImageInfos = ImagePacker.toPackedImageInfos fileNames sizes rects
         template <- handleError =<< EDE.eitherParseFile templatePath
 
         LT.writeFile metadataPath =<< (handleError $ renderPackedImageInfo template packedImageInfos)

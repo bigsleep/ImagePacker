@@ -116,12 +116,12 @@ writeTexture sources destination (width, height) rect =
             [(x, y) | x <- [0..(width - 1)], y <- [0..(height - 1)]]
 
 
-toPackedImageInfos :: Array Int FilePath -> [Rect Int] -> [PackedImageInfo]
-toPackedImageInfos sourceNames rects =
+toPackedImageInfos :: Array Int FilePath -> Array Int (Int, Int) -> [Rect Int] -> [PackedImageInfo]
+toPackedImageInfos sourceNames sizes rects =
     List.concatMap f ([0..] `zip` rects)
 
     where
     f (t, (Rect p s (Just (i, childL, childR)))) =
-        PackedImageInfo (sourceNames ! i) t p s False : f (t, childL) ++ f (t, childR)
+        PackedImageInfo (sourceNames ! i) t p (sizes ! i) False : f (t, childL) ++ f (t, childR)
 
     f _ = []

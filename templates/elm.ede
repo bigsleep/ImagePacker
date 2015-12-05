@@ -12,7 +12,7 @@ assetInfos :: List AssetInfo
 assetInfos =
     [{% for item in items %}{% if !item.first %}    ,{% endif %} { name = "{{ item.value.sourceName }}"
       , texture = {{ item.value.textureIndex }}
-      , position = ({% for x in item.value.size %}{{x.value}}{% if !x.last %}, {% endif %}{% endfor %})
+      , position = ({% for x in item.value.position %}{{x.value}}{% if !x.last %}, {% endif %}{% endfor %})
       , size = ({% for x in item.value.size %}{{x.value}}{% if !x.last %}, {% endif %}{% endfor %})
       , rotated = {% if item.value.rotated %}True{% else %}False{% endif %}
       }
