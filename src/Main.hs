@@ -100,8 +100,8 @@ imagePackerCommand
     -> Flag "" '["metadata-template-file"] "STRING" "metadata template file path." (Def "templates/elm.ede" String)
     -> Flag "" '["texture-filename"] "STRING" "output texture filename format" (Def "texture%d.png" String)
     -> Flag "" '["metadata-path"] "STRING" "output metadata path" (Def "metadata.txt" String)
-    -> Arg "INPUT PATH" String
-    -> Arg "OUTPUT PATH" String
+    -> Arg "INPUT_PATH" String
+    -> Arg "OUTPUT_PATH" String
     -> Cmd "image packer" ()
 imagePackerCommand
     sourceExtension
