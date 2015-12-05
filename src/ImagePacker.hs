@@ -11,6 +11,7 @@ import qualified Codec.Picture as Picture
 import qualified Codec.Picture.Types as Picture
 import qualified Codec.Picture.RGBA8 as Picture (fromDynamicImage)
 
+import Control.Exception (throw)
 import Control.Monad (mplus)
 import Control.Monad.ST (RealWorld)
 
@@ -32,7 +33,7 @@ loadFiles :: [FilePath] -> IO (Array Int Picture.DynamicImage)
 loadFiles filepaths
     = return
     . Array.listArray (0, length filepaths - 1)
-    =<< mapM (either error return)
+    =<< mapM (either (throw . userError) return)
     =<< mapM Picture.readImage filepaths
 
 data Rect a = Rect
