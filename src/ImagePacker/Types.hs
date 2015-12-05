@@ -9,7 +9,7 @@ import Data.Aeson (FromJSON(..), ToJSON(..), Value(..), object, (.:), (.=))
 
 data PackedImageInfo = PackedImageInfo
     { sourceName :: String
-    , textureName :: String
+    , textureIndex :: Int
     , position :: (Int, Int)
     , size :: (Int, Int)
     , rotated :: Bool
@@ -19,7 +19,7 @@ instance FromJSON PackedImageInfo where
     parseJSON (Object a) =
         PackedImageInfo
         <$> a .: "sourceName"
-        <*> a .: "textureName"
+        <*> a .: "textureIndex"
         <*> a .: "position"
         <*> a .: "size"
         <*> a .: "rotated"
@@ -30,7 +30,7 @@ instance ToJSON PackedImageInfo where
     toJSON a =
         object
             [ "sourceName" .= sourceName a
-            , "textureName" .= textureName a
+            , "textureIndex" .= textureIndex a
             , "position" .= position a
             , "size" .= size a
             , "rotated" .= rotated a

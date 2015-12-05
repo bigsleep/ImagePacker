@@ -122,8 +122,6 @@ toPackedImageInfos sourceNames rects =
 
     where
     f (t, (Rect p s (Just (i, childL, childR)))) =
-        PackedImageInfo (sourceNames ! i) (textureName t) p s False : f (t, childL) ++ f (t, childR)
+        PackedImageInfo (sourceNames ! i) t p s False : f (t, childL) ++ f (t, childR)
 
     f _ = []
-
-    textureName t = "texture" ++ (show t) ++ ".png"
