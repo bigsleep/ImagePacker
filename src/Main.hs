@@ -32,6 +32,9 @@ main = do
     LT.writeFile "test.elm" =<< (handleError $ renderPackedImageInfo template packedImageInfos)
     mapM_ (\(i, rect) -> ImagePacker.writeTexture imgs ("test" ++ show i ++ ".png") textureSize rect) ([0..] `zip` rects)
 
+    where
+    handleError = either error return
+
 
 listFilePaths :: String -> FilePath -> IO [FilePath]
 listFilePaths ext = FManip.find (FManip.depth ==? 0) (FManip.extension ==? ext &&? FManip.fileType ==? FManip.RegularFile)
@@ -45,7 +48,3 @@ renderPackedImageInfo template packedImageInfos =
     EDE.eitherRender template value
     where
     value = EDE.fromPairs ["items" .= DA.toJSON packedImageInfos]
-
-
-handleError :: Either String a -> IO a
-handleError = either error return

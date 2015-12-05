@@ -32,7 +32,7 @@ loadFiles :: [FilePath] -> IO (Array Int Picture.DynamicImage)
 loadFiles filepaths
     = return
     . Array.listArray (0, length filepaths - 1)
-    . Either.rights
+    =<< mapM (either error return)
     =<< mapM Picture.readImage filepaths
 
 data Rect a = Rect
