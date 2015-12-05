@@ -26,6 +26,7 @@ executable ImagePacker
                        containers,
                        unordered-containers,
                        transformers,
+                       filepath,
                        filemanip,
                        optparse-declarative,
                        JuicyPixels,

@@ -12,6 +12,7 @@ import qualified Data.Text.Lazy.IO as LT (writeFile)
 
 import qualified ImagePacker
 
+import qualified System.FilePath as F (takeFileName)
 import System.FilePath.Find ((==?), (&&?))
 import qualified System.FilePath.Find as FManip
 
@@ -26,8 +27,8 @@ main = do
     let sizes = Array.amap (Picture.dynamicMap (\x -> (Picture.imageWidth x, Picture.imageHeight x))) imgs
     let textureSize = (256, 256)
     let rects = ImagePacker.packImages textureSize sizes
-    let inputFilePaths' = Array.listArray (0, (length inputFilePaths - 1)) inputFilePaths
-    let packedImageInfos = ImagePacker.toPackedImageInfos inputFilePaths' rects
+    let fileNames = Array.listArray (0, (length inputFilePaths - 1)) . map F.takeFileName $ inputFilePaths
+    let packedImageInfos = ImagePacker.toPackedImageInfos fileNames rects
     template <- handleError =<< EDE.eitherParseFile "templates/elm.ede"
     LT.writeFile "test.elm" =<< (handleError $ renderPackedImageInfo template packedImageInfos)
     mapM_ (\(i, rect) -> ImagePacker.writeTexture imgs ("test" ++ show i ++ ".png") textureSize rect) ([0..] `zip` rects)
