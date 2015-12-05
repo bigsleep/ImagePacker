@@ -3,7 +3,8 @@ module ImagePacker
   ( loadFiles
   , packImages
   , writeTexture
-  , listPackedImageInfos
+  , toPackedImageInfos
+  , PackedImageInfo
   ) where
 
 import qualified Codec.Picture as Picture
@@ -115,8 +116,8 @@ writeTexture sources destination (width, height) rect =
             [(x, y) | x <- [0..(width - 1)], y <- [0..(height - 1)]]
 
 
-listPackedImageInfos :: Array Int FilePath -> [Rect Int] -> [PackedImageInfo]
-listPackedImageInfos sourceNames rects =
+toPackedImageInfos :: Array Int FilePath -> [Rect Int] -> [PackedImageInfo]
+toPackedImageInfos sourceNames rects =
     List.concatMap f ([0..] `zip` rects)
 
     where

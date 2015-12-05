@@ -9,10 +9,10 @@ type alias AssetInfo =
 
 assetInfos :: List AssetInfo
 assetInfos =
-    [{% for item in items %}{% if !item.first %}    ,{% endif %} { name = "{{ item.value.name }}"
-      , position = {{ item.value.position }}
-      , size = {{ item.value.size }}
-      , rotated = {{ item.value.rotated }}
+    [{% for item in items %}{% if !item.first %}    ,{% endif %} { name = "{{ item.value.sourceName }}"
+      , position = ({% for x in item.value.size %}{{x.value}}{% if !x.last %}, {% endif %}{% endfor %})
+      , size = ({% for x in item.value.size %}{{x.value}}{% if !x.last %}, {% endif %}{% endfor %})
+      , rotated = {% if item.value.rotated %}True{% else %}False{% endif %}
       }
 {% endfor %}
     ]
