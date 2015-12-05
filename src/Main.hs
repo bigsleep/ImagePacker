@@ -31,8 +31,14 @@ main :: IO ()
 main = run_ imagePackerCommand
 
 
-listFilePaths :: String -> FilePath -> IO [FilePath]
-listFilePaths ext = FManip.find (FManip.depth ==? 0) (FManip.extension ==? ext &&? FManip.fileType ==? FManip.RegularFile)
+listFilePaths :: Maybe String -> FilePath -> IO [FilePath]
+listFilePaths extOption =
+    let regularFileFilter = FManip.fileType ==? FManip.RegularFile
+        filter =
+            case extOption of
+                Just ext -> FManip.extension ==? ext &&? regularFileFilter
+                Nothing -> FManip.fileType ==? FManip.RegularFile
+    in FManip.find (FManip.depth ==? 0) filter
 
 
 renderPackedImageInfo
@@ -53,7 +59,7 @@ templates = Either.rights $ map (\(name, bs) -> fmap ((,) name)  (EDE.eitherPars
 
 
 imagePacker
-    :: String
+    :: Maybe String
     -> (Int, Int)
     -> FilePath
     -> FilePath
@@ -89,7 +95,7 @@ imagePacker
 
 
 imagePackerCommand
-    :: Flag "" '["input-extension"] "STRING" "extension of input file name" (Def ".png" String)
+    :: Flag "" '["input-extension"] "STRING" "extension of input file name" (Maybe String)
     -> Flag "s" '["texture-size"] "(INT,INT)" "output texture size" (Def "(1024, 1024)" String)
     -> Flag "" '["metadata-template-file"] "STRING" "metadata template file path." (Def "templates/elm.ede" String)
     -> Flag "" '["texture-filename"] "STRING" "output texture filename format" (Def "texture%d.png" String)
