@@ -13,6 +13,7 @@ import qualified Data.Either as Either
 import Data.FileEmbed (embedFile)
 import qualified Data.HashMap.Strict as HM (fromList)
 import qualified Data.List as List
+import qualified Data.Maybe as Maybe
 import qualified Data.Text.Lazy as LT (Text)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
 
@@ -40,25 +41,43 @@ listFilePaths extOption =
         filter =
             case extOption of
                 Just ext -> FManip.extension ==? ext &&? regularFileFilter
-                Nothing -> FManip.fileType ==? FManip.RegularFile
+                Nothing -> regularFileFilter
     in FManip.find (FManip.depth ==? 0) filter
 
 
 renderPackedImageInfo
     :: EDE.Template
+    -> String
+    -> String
     -> [ImagePacker.PackedImageInfo]
     -> Either String LT.Text
-renderPackedImageInfo template packedImageInfos =
+renderPackedImageInfo template moduleName typeName packedImageInfos =
     EDE.eitherRender template value
     where
-    value = EDE.fromPairs ["items" .= DA.toJSON packedImageInfos]
+    value = EDE.fromPairs
+        [ "moduleName" .= DA.toJSON moduleName
+        , "typeName" .= DA.toJSON typeName
+        , "items" .= DA.toJSON packedImageInfos
+        ]
 
 
-templates :: [(String, EDE.Template)]
-templates = Either.rights $ map (\(name, bs) -> fmap ((,) name)  (EDE.eitherParse bs))
-    [ ("json", $(embedFile "templates/json.ede"))
-    , ("elm", $(embedFile "templates/elm.ede"))
+data DefinedTemplate = DefinedTemplate
+    { definedTemplateName :: String
+    , definedTemplateExtension :: String
+    , definedTemplateTemplate :: EDE.Template
+    }
+
+
+templates :: [(String, DefinedTemplate)]
+templates =
+    Either.rights $ map convertToDefinedTemplate
+    [ ("json", "json", $(embedFile "templates/json.ede"))
+    , ("haskell", "hs", $(embedFile "templates/haskell.ede"))
+    , ("elm", "elm", $(embedFile "templates/elm.ede"))
     ]
+    where
+    convertToDefinedTemplate (name, extension, bs) =
+        fmap (\template -> (name, DefinedTemplate name extension template)) (EDE.eitherParse bs)
 
 
 imagePacker
@@ -66,6 +85,8 @@ imagePacker
     -> (Int, Int)
     -> String
     -> Maybe FilePath
+    -> String
+    -> String
     -> FilePath
     -> Maybe FilePath
     -> FilePath
@@ -76,6 +97,8 @@ imagePacker
     textureSize
     metadataType
     templatePath
+    metadataModule
+    metadataTypeName
     textureFileNameFormat
     metadataPath
     inputPath
@@ -90,7 +113,7 @@ imagePacker
         template <- loadTemplate metadataType templatePath
 
         createDirectoryIfMissing True outputPath
-        LT.writeFile metadataPath' =<< (handleError $ renderPackedImageInfo template packedImageInfos)
+        LT.writeFile metadataPath' =<< (handleError $ renderPackedImageInfo template metadataModule metadataTypeName packedImageInfos)
         mapM_ (\(i, rect) -> ImagePacker.writeTexture imgs (renderTexturePath i) textureSize rect) ([0..] `zip` rects)
 
     where
@@ -100,13 +123,17 @@ imagePacker
     renderTexturePath i = outputPath </> printf textureFileNameFormat i
 
     loadTemplate _ (Just path) = handleError =<< EDE.eitherParseFile path
-    loadTemplate mtype _ = maybe (throw . userError $ "unknown metadata type: " ++ mtype) return $ List.lookup mtype templates
+    loadTemplate mtype _ = maybe (throw . userError $ "unknown metadata type: " ++ mtype) return $ findTemplate mtype
+
+    findTemplate mtype = fmap definedTemplateTemplate $ List.lookup mtype templates
+
+    findExtension mtype = Maybe.fromMaybe "" . fmap definedTemplateExtension $ List.lookup mtype templates
 
     metadataPath' =
-        case (templatePath, metadataPath) of
-            (_, Just mpath) -> mpath
-            (Just tpath, _) -> outputPath </> "metadata"
-            _ -> outputPath </> ("metadata" <.> metadataType)
+        case (templatePath, metadataPath, findExtension metadataType) of
+            (_, Just mpath, _) -> mpath
+            (Just tpath, _, extension) -> outputPath </> "metadata" <.> extension
+            (_, _, extension) -> outputPath </> "metadata" <.> extension
 
 
 imagePackerCommand
@@ -114,6 +141,8 @@ imagePackerCommand
     -> Flag "s" '["texture-size"] "(INT,INT)" "output texture size" (Def "(1024, 1024)" String)
     -> Flag "t" '["metadata-type"] "STRING" "metadata type. one of json or elm" (Def "json" String)
     -> Flag "" '["metadata-template-file"] "STRING" "metadata template file path." (Maybe String)
+    -> Flag "" '["metadata-module-name"] "STRING" "metadata module name." (Def "Assets" String)
+    -> Flag "" '["metadata-type-name"] "STRING" "metadata type name." (Def "AssetInfo" String)
     -> Flag "" '["texture-filename"] "STRING" "output texture filename format" (Def "texture%d.png" String)
     -> Flag "" '["metadata-path"] "STRING" "output metadata path" (Maybe String)
     -> Arg "INPUT_PATH" String
@@ -124,6 +153,8 @@ imagePackerCommand
     textureSize
     metadataType
     templatePath
+    metadataModule
+    metadataTypeName
     textureFileNameFormat
     metadataPath
     inputPath
@@ -133,6 +164,8 @@ imagePackerCommand
         (read $ get textureSize)
         (get metadataType)
         (get templatePath)
+        (get metadataModule)
+        (get metadataTypeName)
         (get textureFileNameFormat)
         (get metadataPath)
         (get inputPath)

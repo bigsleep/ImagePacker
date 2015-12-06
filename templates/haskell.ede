@@ -1,0 +1,24 @@
+module {{ moduleName }}
+    ( {{ typeName }}(..)
+    , {{ typeName | lowerHead }}
+    ) where
+
+data {{ typeName }} = {{ typeName }}
+    { name : String
+    , texture : Int
+    , position : (Int, Int)
+    , size : (Int, Int)
+    , rotated : Bool
+    }
+
+{{ typeName | lowerHead }} :: [{{ typeName }}]
+{{ typeName | lowerHead }} =
+    [{% for item in items %}{% if !item.first %}    ,{% endif %} {{ typeName }}
+      { name = "{{ item.value.sourceName }}"
+      , texture = {{ item.value.textureIndex }}
+      , position = ({% for x in item.value.position %}{{x.value}}{% if !x.last %}, {% endif %}{% endfor %})
+      , size = ({% for x in item.value.size %}{{x.value}}{% if !x.last %}, {% endif %}{% endfor %})
+      , rotated = {% if item.value.rotated %}True{% else %}False{% endif %}
+      }
+{% endfor %}
+    ]
