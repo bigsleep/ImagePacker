@@ -1,6 +1,6 @@
 module {{ moduleName }}
     ( {{ typeName }}(..)
-    , {{ typeName | lowerHead }}
+    , {{ typeName | lowerHead }}s
     ) where
 
 data {{ typeName }} = {{ typeName }}
@@ -11,8 +11,8 @@ data {{ typeName }} = {{ typeName }}
     , rotated : Bool
     }
 
-{{ typeName | lowerHead }} :: [{{ typeName }}]
-{{ typeName | lowerHead }} =
+{{ typeName | lowerHead }}s :: [{{ typeName }}]
+{{ typeName | lowerHead }}s =
     [{% for item in items %}{% if !item.first %}    ,{% endif %} {{ typeName }}
       { name = "{{ item.value.sourceName }}"
       , texture = {{ item.value.textureIndex }}

@@ -1,6 +1,6 @@
-module Asset where
+module {{ moduleName }} where
 
-type alias AssetInfo =
+type alias {{ typeName }} =
     { name : String
     , texture : Int
     , position : (Int, Int)
@@ -8,8 +8,8 @@ type alias AssetInfo =
     , rotated : Bool
     }
 
-assetInfos :: List AssetInfo
-assetInfos =
+{{ typeName | lowerHead }}s :: List {{ typeName }}
+{{ typeName | lowerHead }}s =
     [{% for item in items %}{% if !item.first %}    ,{% endif %} { name = "{{ item.value.sourceName }}"
       , texture = {{ item.value.textureIndex }}
       , position = ({% for x in item.value.position %}{{x.value}}{% if !x.last %}, {% endif %}{% endfor %})
