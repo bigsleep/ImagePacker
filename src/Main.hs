@@ -132,7 +132,7 @@ imagePacker
     metadataPath' =
         case (templatePath, metadataPath, findExtension metadataType) of
             (_, Just mpath, _) -> mpath
-            (Just tpath, _, extension) -> outputPath </> "metadata" <.> extension
+            (Just tpath, _, _) -> outputPath </> "metadata"
             (_, _, extension) -> outputPath </> "metadata" <.> extension
 
 
