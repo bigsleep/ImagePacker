@@ -20,6 +20,7 @@ import qualified ImagePacker
 
 import Options.Declarative
 
+import System.Directory (createDirectoryIfMissing)
 import System.FilePath ((</>), (<.>), takeFileName)
 import System.FilePath.Find ((==?), (&&?))
 import qualified System.FilePath.Find as FManip
@@ -88,6 +89,7 @@ imagePacker
         let packedImageInfos = ImagePacker.toPackedImageInfos fileNames sizes rects
         template <- loadTemplate metadataType templatePath
 
+        createDirectoryIfMissing True outputPath
         LT.writeFile metadataPath' =<< (handleError $ renderPackedImageInfo template packedImageInfos)
         mapM_ (\(i, rect) -> ImagePacker.writeTexture imgs (renderTexturePath i) textureSize rect) ([0..] `zip` rects)
 

@@ -28,6 +28,7 @@ executable ImagePacker
                        containers,
                        unordered-containers,
                        transformers,
+                       directory,
                        filepath,
                        filemanip,
                        file-embed,
