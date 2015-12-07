@@ -1,5 +1,10 @@
 {-# LANGUAGE DataKinds, OverloadedStrings, TemplateHaskell #-}
-module Main where
+module ImagePackerCommand
+    ( imagePacker
+    , imagePackerCommand
+    , runImagePackerCommand
+    , definedTemplates
+    ) where
 
 import qualified Codec.Picture as Picture
 import qualified Codec.Picture.Types as Picture
@@ -29,10 +34,6 @@ import qualified System.FilePath.Find as FManip
 import Text.Printf (printf)
 import Text.EDE ((.=))
 import qualified Text.EDE as EDE (Template, eitherParse, eitherParseFile, eitherRender, fromPairs)
-
-
-main :: IO ()
-main = run_ imagePackerCommand
 
 
 listFilePaths :: Maybe String -> FilePath -> IO [FilePath]
@@ -68,8 +69,8 @@ data DefinedTemplate = DefinedTemplate
     }
 
 
-templates :: [(String, DefinedTemplate)]
-templates =
+definedTemplates :: [(String, DefinedTemplate)]
+definedTemplates =
     Either.rights $ map convertToDefinedTemplate
     [ ("json", "json", $(embedFile "templates/json.ede"))
     , ("haskell", "hs", $(embedFile "templates/haskell.ede"))
@@ -125,9 +126,9 @@ imagePacker
     loadTemplate _ (Just path) = handleError =<< EDE.eitherParseFile path
     loadTemplate mtype _ = maybe (throw . userError $ "unknown metadata type: " ++ mtype) return $ findTemplate mtype
 
-    findTemplate mtype = fmap definedTemplateTemplate $ List.lookup mtype templates
+    findTemplate mtype = fmap definedTemplateTemplate $ List.lookup mtype definedTemplates
 
-    findExtension mtype = Maybe.fromMaybe "" . fmap definedTemplateExtension $ List.lookup mtype templates
+    findExtension mtype = Maybe.fromMaybe "" . fmap definedTemplateExtension $ List.lookup mtype definedTemplates
 
     metadataPath' =
         case (templatePath, metadataPath, findExtension metadataType) of
@@ -170,3 +171,6 @@ imagePackerCommand
         (get metadataPath)
         (get inputPath)
         (get outputPath)
+
+runImagePackerCommand :: IO ()
+runImagePackerCommand = run_ imagePackerCommand
