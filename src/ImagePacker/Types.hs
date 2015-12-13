@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 module ImagePacker.Types
   ( PackedImageInfo(..)
+  , Rect(..)
   ) where
 
 import Control.Monad (mzero)
@@ -35,3 +36,10 @@ instance ToJSON PackedImageInfo where
             , "size" .= size a
             , "rotated" .= rotated a
             ]
+
+
+data Rect a = Rect
+    { rectPosition :: (Int, Int)
+    , rectSize :: (Int, Int)
+    , rectElement :: Maybe (a, Rect a, Rect a)
+    } deriving (Show, Eq)

@@ -53,6 +53,7 @@ test-suite tests
   main-is:             Spec.hs
   build-depends:
     base >=4.8 && <4.9,
+    array,
     hspec,
     QuickCheck,
     JuicyPixels,

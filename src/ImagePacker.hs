@@ -26,7 +26,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text.Lazy.IO as LT (writeFile)
 import qualified Data.Vector as V (fromList)
 
-import ImagePacker.Types (PackedImageInfo(PackedImageInfo))
+import ImagePacker.Types (PackedImageInfo(PackedImageInfo), Rect(..))
 
 
 loadFiles :: [FilePath] -> IO (Array Int Picture.DynamicImage)
@@ -36,11 +36,6 @@ loadFiles filepaths
     =<< mapM (either (throw . userError) return)
     =<< mapM Picture.readImage filepaths
 
-data Rect a = Rect
-    { position :: (Int, Int)
-    , size :: (Int, Int)
-    , element :: Maybe (a, Rect a, Rect a)
-    } deriving (Show, Eq)
 
 packImages
     :: (Int, Int)
@@ -73,13 +68,13 @@ packImages textureSize =
 
     tryPackOne a @ (index, (w, h)) r @ (Rect _ (rw, rh) Nothing) =
         if rw >= w && rh >= h
-            then Just $ newRect (position r) (size r) a
+            then Just $ newRect (rectPosition r) (rectSize r) a
             else Nothing
 
     tryPackOne a r @ (Rect _ _ (Just (e, childL, childR))) =
         mplus
-            (tryPackOne a childL >>= (\childL' -> Just r { element = Just (e, childL', childR) }))
-            (tryPackOne a childR >>= (\childR' -> Just r { element = Just (e, childL, childR') }))
+            (tryPackOne a childL >>= (\childL' -> Just r { rectElement = Just (e, childL', childR) }))
+            (tryPackOne a childR >>= (\childR' -> Just r { rectElement = Just (e, childL, childR') }))
 
     sortInputs = List.sortBy (\(_, (lw, lh)) (_, (rw, rh)) -> compare (rw, rh) (lw, lh))
                 
