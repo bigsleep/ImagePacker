@@ -8,7 +8,7 @@ type alias {{ typeName }} =
     , rotated : Bool
     }
 
-{{ typeName | lowerHead }}s :: List {{ typeName }}
+{{ typeName | lowerHead }}s : List {{ typeName }}
 {{ typeName | lowerHead }}s =
     [{% for item in items %}{% if !item.first %}    ,{% endif %} { name = "{{ item.value.sourceName }}"
       , texture = {{ item.value.textureIndex }}
