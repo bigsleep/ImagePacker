@@ -1,0 +1,17 @@
+
+{% for item in items %}
+[class="sprite-{{ item.value.sourceName | toValidHtmlClassName }}"] {
+    display:inline-block;
+    overflow: hidden;
+    background-repeat: no-repeat;
+    background-image: url('texture{{ item.value.textureIndex }}.png');
+{% for s in item.value.size %}
+{% if s.first %}
+    width: {{ s.value }}px;
+{% else %}
+    height: {{ s.value }}px;
+{% endif %}
+{% endfor %}
+    background-position:{% for p in item.value.position %} -{{ p.value }}px{% endfor %};
+}
+{% endfor %}
