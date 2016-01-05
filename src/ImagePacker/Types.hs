@@ -1,12 +1,13 @@
 {-# LANGUAGE OverloadedStrings #-}
 module ImagePacker.Types
   ( PackedImageInfo(..)
+  , MetadataSetting(..)
   , Rect(..)
   ) where
 
 import Control.Monad (mzero)
 import Control.Applicative ((<$>), (<*>))
-import Data.Aeson (FromJSON(..), ToJSON(..), Value(..), object, (.:), (.=))
+import Data.Aeson (FromJSON(..), ToJSON(..), Value(..), Object, object, (.:), (.=))
 
 data PackedImageInfo = PackedImageInfo
     { sourceName :: String
@@ -35,6 +36,32 @@ instance ToJSON PackedImageInfo where
             , "position" .= position a
             , "size" .= size a
             , "rotated" .= rotated a
+            ]
+
+
+data MetadataSetting =
+    MetadataSetting
+    { metadataType :: String
+    , metadataOutputPath :: FilePath
+    , metadataValues :: Object
+    } deriving (Show, Eq)
+
+
+instance FromJSON MetadataSetting where
+    parseJSON (Object a) =
+        MetadataSetting
+        <$> a .: "metadataType"
+        <*> a .: "metadataOutputPath"
+        <*> a .: "metadataValues"
+
+    parseJSON _ = mzero
+
+instance ToJSON MetadataSetting where
+    toJSON a =
+        object
+            [ "metadataType" .= metadataType a
+            , "metadataOutputPath" .= metadataOutputPath a
+            , "metadataValues" .= metadataValues a
             ]
 
 
