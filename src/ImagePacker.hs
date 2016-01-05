@@ -26,7 +26,7 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text.Lazy.IO as LT (writeFile)
 import qualified Data.Vector as V (fromList)
 
-import ImagePacker.Types (PackedImageInfo(PackedImageInfo), Rect(..))
+import ImagePacker.Types
 
 
 loadFiles :: [FilePath] -> IO (Array Int Picture.DynamicImage)

@@ -2,12 +2,16 @@
 module ImagePacker.Types
   ( PackedImageInfo(..)
   , MetadataSetting(..)
+  , DefinedMetadataSetting(..)
   , Rect(..)
   ) where
 
 import Control.Monad (mzero)
 import Control.Applicative ((<$>), (<*>))
-import Data.Aeson (FromJSON(..), ToJSON(..), Value(..), Object, object, (.:), (.=))
+import Data.Aeson (FromJSON(..), ToJSON(..), Value(..), object, (.:), (.:?), (.!=), (.=))
+import qualified Data.HashMap.Strict as HM (HashMap, empty)
+import Data.Text (Text)
+import qualified Text.EDE as EDE (Template)
 
 data PackedImageInfo = PackedImageInfo
     { sourceName :: String
@@ -42,8 +46,7 @@ instance ToJSON PackedImageInfo where
 data MetadataSetting =
     MetadataSetting
     { metadataType :: String
-    , metadataOutputPath :: FilePath
-    , metadataValues :: Object
+    , metadataValues :: HM.HashMap Text Text
     } deriving (Show, Eq)
 
 
@@ -51,8 +54,7 @@ instance FromJSON MetadataSetting where
     parseJSON (Object a) =
         MetadataSetting
         <$> a .: "metadataType"
-        <*> a .: "metadataOutputPath"
-        <*> a .: "metadataValues"
+        <*> a .:? "metadataValues" .!= HM.empty
 
     parseJSON _ = mzero
 
@@ -60,9 +62,16 @@ instance ToJSON MetadataSetting where
     toJSON a =
         object
             [ "metadataType" .= metadataType a
-            , "metadataOutputPath" .= metadataOutputPath a
             , "metadataValues" .= metadataValues a
             ]
+
+
+data DefinedMetadataSetting =
+    DefinedMetadataSetting
+    { definedMetadataType :: String
+    , definedMetadataValues :: HM.HashMap Text Text
+    , definedMetadataTemplate :: EDE.Template
+    }
 
 
 data Rect a = Rect
