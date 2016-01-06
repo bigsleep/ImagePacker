@@ -83,7 +83,6 @@ outputMetadata textureOutputPath packedImageInfos (MetadataSetting mtype values)
     maybeDefinedSetting = List.lookup mtype $ zip definedTypes definedMetadataSettings
     loadSetting (Just setting) = return $ (definedMetadataTemplate setting, HM.union values $ definedMetadataValues setting)
     loadSetting _ = return . flip (,) values =<< handleError =<< EDE.eitherParseFile mtype
-    useDefinedType = elem mtype definedTypes
     solveOutputPath values' =
         Maybe.fromMaybe
             (Maybe.fromMaybe textureOutputPath (T.unpack `fmap` HM.lookup "outputDirectory" values')
