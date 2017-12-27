@@ -1,8 +1,6 @@
-flags: {}
-extra-package-dbs: []
+resolver: lts-10.1
 packages:
-- '.'
+- .
 extra-deps:
 - JuicyPixels-util-0.2
 - optparse-declarative-0.3.0
-resolver: lts-3.7
