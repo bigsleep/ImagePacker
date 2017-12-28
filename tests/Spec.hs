@@ -22,19 +22,16 @@ textureSize = 1024
 
 
 packImagesSpec :: Spec
-packImagesSpec =
+packImagesSpec = do
     Q.prop "packImages" $
         \imageSizes -> do
             let imageSizes' = Array.listArray (0, length imageSizes - 1) . map unImageSize $ imageSizes
-                rects = ImagePacker.packImages (textureSize, textureSize) imageSizes'
-                locations = map toLocation $ rects
-            (List.sort . map imageIndex . List.concat $ locations) `shouldBe` Array.indices imageSizes'
-            mapM_ (noAnyOverlappings imageSizes') locations
+                ps = ImagePacker.packImages (textureSize, textureSize) imageSizes'
+                layouts = map ImagePacker.packedLayouts ps
+            (List.sort . map ImagePacker.layoutImageIndex . List.concat $ layouts) `shouldBe` Array.indices imageSizes'
+            mapM_ (noAnyOverlappings imageSizes') layouts
 
     where
-    toLocation (ImagePacker.Rect p s (Just (i, left, right))) = Location i p : toLocation left ++ toLocation right
-    toLocation _ = []
-
     noAnyOverlappings sizes (a : b : tail) = do
         noOverlapping sizes a b
         noAnyOverlappings sizes (a : tail)
@@ -42,20 +39,21 @@ packImagesSpec =
 
     noAnyOverlappings sizes _ = return ()
 
-    noOverlapping :: Array.Array Int (Int, Int) -> Location -> Location -> Expectation
-    noOverlapping sizes a b =
-        do
-            let (ax, ay) = position a
-                (aw, ah) = sizes Array.! (imageIndex a)
-                (acx, acy) = (ax * 2 + aw, ay * 2 + ah)
+    noOverlapping :: Array.Array Int (Int, Int) -> ImagePacker.Layout -> ImagePacker.Layout -> Expectation
+    noOverlapping sizes a b = do
+            let (aw, ah) = sizes Array.! (ImagePacker.layoutImageIndex a)
+                (bw, bh) = sizes Array.! (ImagePacker.layoutImageIndex b)
+                sa = if ImagePacker.layoutRotated a then (ah, aw) else (aw, ah)
+                sb = if ImagePacker.layoutRotated b then (bh, bw) else (bw, bh)
+                pa = ImagePacker.layoutPosition a
+                pb = ImagePacker.layoutPosition b
+            when (overlapping (pa, sa) (pb, sb)) $ expectationFailure $ "overlapping found between " ++ show (pa, sa) ++ " and " ++ show (pb, sb)
 
-                (bx, by) = position b
-                (bw, bh) = sizes Array.! (imageIndex b)
-                (bcx, bcy) = (bx * 2 + bw, by * 2 + bh)
-
-                (dx, dy) = (abs (acx - bcx), abs (acy - bcy))
-                overlapping = dx < aw + bw && dy < ah + bh
-            when overlapping $ expectationFailure $ "overlapping found between " ++ show ((ax, ay), (aw, ah)) ++ " and " ++ show ((bx, by), (bw, bh))
+    overlapping ((ax, ay), (aw, ah)) ((bx, by), (bw, bh)) =
+        let (acx, acy) = (ax * 2 + aw, ay * 2 + ah)
+            (bcx, bcy) = (bx * 2 + bw, by * 2 + bh)
+            (dx, dy) = (abs (acx - bcx), abs (acy - bcy))
+        in dx < aw + bw && dy < ah + bh
 
 newtype ImageSize =
     ImageSize
@@ -67,8 +65,3 @@ instance Q.Arbitrary ImageSize where
         w <- Q.choose (1, textureSize)
         h <- Q.choose (1, textureSize)
         return (ImageSize (w, h))
-
-data Location = Location
-    { imageIndex :: Int
-    , position :: (Int, Int)
-    } deriving (Show, Eq)

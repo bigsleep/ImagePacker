@@ -3,6 +3,8 @@ module ImagePacker.Types
   ( PackedImageInfo(..)
   , MetadataSetting(..)
   , DefinedMetadataSetting(..)
+  , Packed(..)
+  , Layout(..)
   , Rect(..)
   ) where
 
@@ -10,15 +12,16 @@ import Control.Monad (mzero)
 import Control.Applicative ((<$>), (<*>))
 import Data.Aeson (FromJSON(..), ToJSON(..), Value(..), object, (.:), (.:?), (.!=), (.=))
 import qualified Data.HashMap.Strict as HM (HashMap, empty)
+import Data.Map.Strict (Map)
 import Data.Text (Text)
 import qualified Text.EDE as EDE (Template)
 
 data PackedImageInfo = PackedImageInfo
-    { sourceName :: String
-    , textureIndex :: Int
-    , position :: (Int, Int)
-    , size :: (Int, Int)
-    , rotated :: Bool
+    { sourceName :: !String
+    , textureIndex :: !Int
+    , position :: !(Int, Int)
+    , size :: !(Int, Int)
+    , rotated :: !Bool
     } deriving (Show, Eq)
 
 instance FromJSON PackedImageInfo where
@@ -45,8 +48,8 @@ instance ToJSON PackedImageInfo where
 
 data MetadataSetting =
     MetadataSetting
-    { metadataType :: String
-    , metadataValues :: HM.HashMap Text Text
+    { metadataType :: !String
+    , metadataValues :: !(HM.HashMap Text Text)
     } deriving (Show, Eq)
 
 
@@ -74,8 +77,21 @@ data DefinedMetadataSetting =
     }
 
 
-data Rect a = Rect
-    { rectPosition :: (Int, Int)
-    , rectSize :: (Int, Int)
-    , rectElement :: Maybe (a, Rect a, Rect a)
+data Packed = Packed
+    { packedLayouts :: ![Layout]
+    , packedSpaces :: ![Rect]
     } deriving (Show, Eq)
+
+
+data Layout = Layout
+    { layoutImageIndex :: !Int
+    , layoutPosition :: !(Int, Int)
+    , layoutRotated :: !Bool
+    } deriving (Show, Eq)
+
+data Rect = Rect
+    { rectArea :: !Int
+    , rectWidth :: !Int
+    , rectHeight :: !Int
+    , rectPosition :: !(Int, Int)
+    } deriving (Show, Eq, Ord)
