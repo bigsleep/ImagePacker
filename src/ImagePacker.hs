@@ -9,7 +9,6 @@ module ImagePacker
 
 import qualified Codec.Picture as Picture
 import qualified Codec.Picture.Types as Picture
-import qualified Codec.Picture.RGBA8 as Picture (fromDynamicImage)
 
 import Control.Exception (throw)
 import Control.Monad (mplus)
@@ -77,7 +76,7 @@ packImages textureSize =
             (tryPackOne a childR >>= (\childR' -> Just r { rectElement = Just (e, childL, childR') }))
 
     sortInputs = List.sortBy (\(_, (lw, lh)) (_, (rw, rh)) -> compare (rw, rh) (lw, lh))
-                
+
 
 writeTexture :: Array Int Picture.DynamicImage -> FilePath -> (Int, Int) -> Rect Int -> IO ()
 writeTexture sources destination (width, height) rect =
@@ -99,7 +98,7 @@ writeTexture sources destination (width, height) rect =
     render _ _ = return ()
 
     writePixels texture (ox, oy) img =
-        let img' = Picture.fromDynamicImage img
+        let img' = Picture.convertRGBA8 img
             w = Picture.imageWidth img'
             h = Picture.imageHeight img'
         in  mapM_
