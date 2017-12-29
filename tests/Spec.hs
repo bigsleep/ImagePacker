@@ -2,8 +2,9 @@ module Main where
 
 import Control.Monad (when)
 
-import qualified Data.Array.IArray as Array
 import qualified Data.List as List
+import Data.Vector (Vector, (!))
+import qualified Data.Vector as V
 
 import qualified ImagePacker as ImagePacker
 import qualified ImagePacker.Types as ImagePacker
@@ -25,10 +26,10 @@ packImagesSpec :: Spec
 packImagesSpec = do
     Q.prop "packImages" $
         \imageSizes -> do
-            let imageSizes' = Array.listArray (0, length imageSizes - 1) . map unImageSize $ imageSizes
+            let imageSizes' = V.fromList . map unImageSize $ imageSizes
                 ps = ImagePacker.packImages (textureSize, textureSize) imageSizes'
                 layouts = map ImagePacker.packedLayouts ps
-            (List.sort . map ImagePacker.layoutImageIndex . List.concat $ layouts) `shouldBe` Array.indices imageSizes'
+            (List.sort . map ImagePacker.layoutImageIndex . List.concat $ layouts) `shouldBe` [0..(V.length imageSizes' - 1)]
             mapM_ (noAnyOverlappings imageSizes') layouts
 
     where
@@ -39,10 +40,10 @@ packImagesSpec = do
 
     noAnyOverlappings sizes _ = return ()
 
-    noOverlapping :: Array.Array Int (Int, Int) -> ImagePacker.Layout -> ImagePacker.Layout -> Expectation
+    noOverlapping :: Vector (Int, Int) -> ImagePacker.Layout -> ImagePacker.Layout -> Expectation
     noOverlapping sizes a b = do
-            let (aw, ah) = sizes Array.! (ImagePacker.layoutImageIndex a)
-                (bw, bh) = sizes Array.! (ImagePacker.layoutImageIndex b)
+            let (aw, ah) = sizes ! (ImagePacker.layoutImageIndex a)
+                (bw, bh) = sizes ! (ImagePacker.layoutImageIndex b)
                 sa = if ImagePacker.layoutRotated a then (ah, aw) else (aw, ah)
                 sb = if ImagePacker.layoutRotated b then (bh, bw) else (bw, bh)
                 pa = ImagePacker.layoutPosition a

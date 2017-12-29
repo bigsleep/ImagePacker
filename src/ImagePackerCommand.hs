@@ -13,7 +13,6 @@ import Control.Monad.IO.Class (liftIO)
 
 import qualified Data.Aeson as DA (ToJSON(..), Value(..), eitherDecode)
 import qualified Data.Aeson.Types as DA (Object)
-import qualified Data.Array.IArray as Array
 import qualified Data.ByteString.Lazy.Char8 as LB (pack)
 import qualified Data.Char
 import qualified Data.Either as Either
@@ -24,6 +23,8 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text as T (Text, pack, unpack)
 import qualified Data.Text.Lazy as LT (Text)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
+import Data.Vector (Vector)
+import qualified Data.Vector as V (map, fromList)
 
 import ImagePacker
 import ImagePacker.Types
@@ -101,7 +102,7 @@ data DefinedTemplate = DefinedTemplate
 definedMetadataSettings :: [DefinedMetadataSetting]
 definedMetadataSettings =
     Either.rights
-    [ toEitherDefinedMetadataSetting 
+    [ toEitherDefinedMetadataSetting
         "json"
         [ "extension" .= "json"
         , "filename" .= "metadata"
@@ -167,9 +168,9 @@ imagePacker
     = do
         inputFilePaths <- listFilePaths sourceExtention inputPath
         imgs <- loadFiles inputFilePaths
-        let sizes = Array.amap (Picture.dynamicMap (\x -> (Picture.imageWidth x, Picture.imageHeight x))) imgs
+        let sizes = V.map (\x -> (Picture.imageWidth x, Picture.imageHeight x)) imgs
             rects = packImages textureSize sizes
-            fileNames = Array.listArray (0, (length inputFilePaths - 1)) . map takeFileName $ inputFilePaths
+            fileNames = V.fromList . map takeFileName $ inputFilePaths
             packedImageInfos = toPackedImageInfos fileNames sizes rects
 
         createDirectoryIfMissing True outputPath
@@ -199,7 +200,7 @@ imagePackerCommand
     outputPath
     = liftIO $ do
         metadataSettings' <- handleError . DA.eitherDecode . LB.pack $ get metadataSettings
-        imagePacker 
+        imagePacker
             (get sourceExtension)
             (read $ "(" ++ get textureSize ++ ")")
             metadataSettings'
