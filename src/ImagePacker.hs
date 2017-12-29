@@ -146,7 +146,7 @@ writeTexture sources destination (width, height) (Packed layouts _) = do
             h = Picture.imageHeight img'
             src = [(x, y, Picture.pixelAt img' x y) | x <- [0..(w - 1)], y <- [0..(h - 1)]]
             write (x, y, a) = if rotated
-                then Picture.writePixel texture (ox + (h - y)) (oy + x) a
+                then Picture.writePixel texture (ox + (h - y - 1)) (oy + x) a
                 else Picture.writePixel texture (ox + x) (oy + y) a
         in  mapM_ write src
 
