@@ -6,7 +6,6 @@ module ImagePackerCommand
     ) where
 
 import qualified Codec.Picture as Picture
-import qualified Codec.Picture.Types as Picture
 
 import Control.Exception (throw)
 import Control.Monad.IO.Class (liftIO)
@@ -17,13 +16,12 @@ import qualified Data.ByteString.Lazy.Char8 as LB (pack)
 import qualified Data.Char
 import qualified Data.Either as Either
 import Data.FileEmbed (embedFile)
-import qualified Data.HashMap.Strict as HM (HashMap, fromList, empty, lookup, insert, union, map)
+import qualified Data.HashMap.Strict as HM (fromList, lookup, insert, union, map)
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as T (Text, pack, unpack)
 import qualified Data.Text.Lazy as LT (Text)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
-import Data.Vector (Vector)
 import qualified Data.Vector as V (map, fromList)
 
 import ImagePacker
@@ -37,19 +35,16 @@ import System.FilePath.Find ((==?), (&&?))
 import qualified System.FilePath.Find as FManip
 
 import Text.Printf (printf)
-import Text.EDE ((.=))
 import Text.EDE.Filters ((@:))
-import qualified Text.EDE as EDE (Template, eitherParse, eitherParseFile, eitherRenderWith, fromPairs)
+import qualified Text.EDE as EDE (Template, eitherParse, eitherParseFile, eitherRenderWith)
 
 
 listFilePaths :: Maybe String -> FilePath -> IO [FilePath]
-listFilePaths extOption =
-    let regularFileFilter = FManip.fileType ==? FManip.RegularFile
-        filter =
-            case extOption of
-                Just ext -> FManip.extension ==? ext &&? regularFileFilter
-                Nothing -> regularFileFilter
-    in FManip.find (FManip.depth ==? 0) filter
+listFilePaths extOption = FManip.find (FManip.depth ==? 0) (f extOption)
+    where
+    regularFileFilter = FManip.fileType ==? FManip.RegularFile
+    f (Just ext) = FManip.extension ==? ext &&? regularFileFilter
+    f Nothing = regularFileFilter
 
 
 renderPackedImageInfo
@@ -80,7 +75,6 @@ outputMetadata textureOutputPath packedImageInfos (MetadataSetting mtype values)
 
     where
     definedTypes = map definedMetadataType definedMetadataSettings
-    definedSettings = zip definedTypes definedMetadataSettings
     maybeDefinedSetting = List.lookup mtype $ zip definedTypes definedMetadataSettings
     loadSetting (Just setting) = return $ (definedMetadataTemplate setting, HM.union values $ definedMetadataValues setting)
     loadSetting _ = return . flip (,) values =<< handleError =<< EDE.eitherParseFile mtype
@@ -211,5 +205,5 @@ imagePackerCommand
 runImagePackerCommand :: IO ()
 runImagePackerCommand = run_ imagePackerCommand
 
-
+handleError :: Either String a -> IO a
 handleError = either (throw . userError) return

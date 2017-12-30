@@ -12,16 +12,15 @@ import Control.Monad (mzero)
 import Control.Applicative ((<$>), (<*>))
 import Data.Aeson (FromJSON(..), ToJSON(..), Value(..), object, (.:), (.:?), (.!=), (.=))
 import qualified Data.HashMap.Strict as HM (HashMap, empty)
-import Data.Map.Strict (Map)
 import Data.Text (Text)
 import qualified Text.EDE as EDE (Template)
 
 data PackedImageInfo = PackedImageInfo
-    { sourceName :: !String
-    , textureIndex :: !Int
-    , position :: !(Int, Int)
-    , size :: !(Int, Int)
-    , rotated :: !Bool
+    { piiSourceName :: !String
+    , piiTextureIndex :: !Int
+    , piiPosition :: !(Int, Int)
+    , piiSize :: !(Int, Int)
+    , piiRotated :: !Bool
     } deriving (Show, Eq)
 
 instance FromJSON PackedImageInfo where
@@ -38,11 +37,11 @@ instance FromJSON PackedImageInfo where
 instance ToJSON PackedImageInfo where
     toJSON a =
         object
-            [ "sourceName" .= sourceName a
-            , "textureIndex" .= textureIndex a
-            , "position" .= position a
-            , "size" .= size a
-            , "rotated" .= rotated a
+            [ "sourceName" .= piiSourceName a
+            , "textureIndex" .= piiTextureIndex a
+            , "position" .= piiPosition a
+            , "size" .= piiSize a
+            , "rotated" .= piiRotated a
             ]
 
 

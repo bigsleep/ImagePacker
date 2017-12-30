@@ -14,25 +14,18 @@ import qualified Codec.Picture.Types as Picture
 import Control.Exception (throw)
 import Control.Monad (mplus)
 import Control.Monad.Primitive (PrimMonad(..))
-import Control.Monad.ST (RealWorld)
 
-import qualified Data.Either as Either
 import qualified Data.List as List
-import Data.Map.Strict (Map)
-import qualified Data.Map.Strict as Map
 import qualified Data.Maybe as Maybe
 
-import qualified Data.Text.Lazy.IO as LT (writeFile)
 import Data.Vector (Vector, (!))
-import qualified Data.Vector as V (fromList, toList, zip)
+import qualified Data.Vector as V (fromList, toList)
 import qualified Data.Vector.Generic as V (imapM_, slice, copy)
-import qualified Data.Vector.Storable as SV (fromList, unsafeCast)
+import qualified Data.Vector.Storable as SV (unsafeCast)
 import qualified Data.Vector.Storable.Mutable as MV (slice, unsafeCast, write)
 import Data.Word (Word32)
 
 import ImagePacker.Types
-
-import Debug.Trace (trace)
 
 
 loadFiles :: [FilePath] -> IO (Vector(Picture.Image Picture.PixelRGBA8))
@@ -60,7 +53,7 @@ packImages textureSize xs =
             spaces = relocateSpaces (0, 0) (w, h) (newRect (0, 0) textureSize)
         in Packed layouts spaces
 
-    tryPack a [] = Nothing
+    tryPack _ [] = Nothing
 
     tryPack a (r : rs) =
         case tryPackOne a r of
@@ -70,8 +63,8 @@ packImages textureSize xs =
     sortInputs = List.sortBy (\(_, (lw, lh)) (_, (rw, rh)) -> compare (rw * rh) (lw * lh))
 
 tryPackOne :: (Int, (Int, Int)) -> Packed -> Maybe Packed
-tryPackOne a @ (index, (w, h)) (Packed layouts spaces) = do
-    (Rect _ rw rh rp, rotated) <- s1 `mplus` s2
+tryPackOne (index, (w, h)) (Packed layouts spaces) = do
+    (Rect _ _ _ rp, rotated) <- s1 `mplus` s2
     let layout = Layout index rp rotated
         size = if rotated then (h, w) else (w, h)
         (intersectSpaces, restSpaces) = List.partition (hasIntersection rp size) spaces
@@ -95,7 +88,7 @@ relocateSpaces p s r =
     horizontalSpaces p s r ++ verticalSpaces p s r
 
 horizontalSpaces :: (Int, Int) -> (Int, Int) -> Rect -> [Rect]
-horizontalSpaces (x, y) (w, h) (Rect a rw rh (rx, ry))
+horizontalSpaces (_, y) (_, h) (Rect _ rw rh (rx, ry))
     | ry < y && (y + h) < (ry + rh) = [s1, s2]
     | ry < y = [s1]
     | (y + h) < (ry + rh) = [s2]
@@ -105,7 +98,7 @@ horizontalSpaces (x, y) (w, h) (Rect a rw rh (rx, ry))
     s2 = newRect (rx, y + h) (rw, ry + rh - y - h)
 
 verticalSpaces :: (Int, Int) -> (Int, Int) -> Rect -> [Rect]
-verticalSpaces (x, y) (w, h) (Rect a rw rh (rx, ry))
+verticalSpaces (x, _) (w, _) (Rect _ rw rh (rx, ry))
     | rx < x && (x + w) < (rx + rw) = [s1, s2]
     | rx < x = [s1]
     | (x + w) < (rx + rw) = [s2]
@@ -145,7 +138,6 @@ writeTexture sources destination (width, height) (Packed layouts _) = do
             textureData = MV.unsafeCast $ Picture.mutableImageData texture
             w = Picture.imageWidth img
             h = Picture.imageHeight img
-            componentCount = Picture.componentCount (undefined :: Picture.PixelRGBA8)
             write True i a =
                 let (y, x) = divMod i w
                     (x', y') = (ox + h - y - 1, oy + x)
@@ -164,7 +156,7 @@ writeSubImage target (x, y) source =
     mapM_ (uncurry V.copy) (zip targetSlices sourceSlices)
     where
     componentCount = Picture.componentCount (undefined :: Picture.PixelRGBA8)
-    Picture.MutableImage targetWidth targetHeight targetData = target
+    Picture.MutableImage targetWidth _ targetData = target
     targetSliceStarts = [(x + (y + dy) * targetWidth) * componentCount | dy <- [0..(sourceHeight - 1)]]
     lineSize = sourceWidth * componentCount
     targetSlices = map (\s -> MV.slice s lineSize targetData) targetSliceStarts

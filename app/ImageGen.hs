@@ -8,11 +8,11 @@ import Control.Monad
 import Control.Monad.IO.Class (liftIO)
 import qualified System.FilePath as FilePath (combine)
 import Options.Declarative
-import qualified System.Random as Random (newStdGen, randomIO, randomRIO)
+import qualified System.Random as Random (randomIO, randomRIO)
 
 main :: IO ()
 main = run_ imageGenCommand
-    
+
 imageGenCommand
     :: Flag "o" '["output"] "STRING" "output file name prefix" (Def "testimg" String)
     -> Flag "n" '["number"] "INT" "number of output files" (Def "10" Int)
