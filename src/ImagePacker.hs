@@ -13,6 +13,7 @@ import qualified Codec.Picture.Types as Picture
 
 import Control.Exception (throw)
 import Control.Monad (mplus)
+import Control.Monad.Primitive (PrimMonad(..))
 import Control.Monad.ST (RealWorld)
 
 import qualified Data.Either as Either
@@ -24,8 +25,9 @@ import qualified Data.Maybe as Maybe
 import qualified Data.Text.Lazy.IO as LT (writeFile)
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as V (fromList, toList, zip)
-import qualified Data.Vector.Generic as V (imapM_)
+import qualified Data.Vector.Generic as V (imapM_, slice, copy)
 import qualified Data.Vector.Storable as SV (fromList, unsafeCast)
+import qualified Data.Vector.Storable.Mutable as MV (slice)
 
 import ImagePacker.Types
 
@@ -134,8 +136,11 @@ writeTexture sources destination (width, height) (Packed layouts _) = do
     where
     background = Picture.PixelRGBA8 (toEnum 0) (toEnum 0) (toEnum 0) (toEnum 0)
 
-    render texture (Layout index p rotated) = do
-        writePixels texture p rotated $ sources ! index
+    render texture (Layout index p True) =
+        writePixels texture p True $ sources ! index
+
+    render texture (Layout index p False) =
+        writeSubImage texture p $ sources ! index
 
     writePixels texture (ox, oy) rotated img =
         let imageData = SV.unsafeCast $ Picture.imageData img
@@ -157,6 +162,22 @@ writeTexture sources destination (width, height) (Packed layouts _) = do
         mapM_
             (\(x, y) -> Picture.writePixel texture x y background)
             [(x, y) | x <- [0..(width - 1)], y <- [0..(height - 1)]]
+
+writeSubImage
+    :: (PrimMonad m)
+    => Picture.MutableImage (PrimState m) Picture.PixelRGBA8 -> (Int, Int) -> Picture.Image Picture.PixelRGBA8 -> m ()
+writeSubImage target (x, y) source =
+    mapM_ (uncurry V.copy) (zip targetSlices sourceSlices)
+    where
+    componentCount = Picture.componentCount (undefined :: Picture.PixelRGBA8)
+    Picture.MutableImage targetWidth targetHeight targetData = target
+    targetSliceStarts = [(x + (y + dy) * targetWidth) * componentCount | dy <- [0..(sourceHeight - 1)]]
+    lineSize = sourceWidth * componentCount
+    targetSlices = map (\s -> MV.slice s lineSize targetData) targetSliceStarts
+
+    Picture.Image sourceWidth sourceHeight sourceData = source
+    sourceSliceStarts = [dy * sourceWidth * componentCount | dy <- [0..(sourceHeight - 1)]]
+    sourceSlices = map (\s -> V.slice s lineSize sourceData) sourceSliceStarts
 
 
 toPackedImageInfos :: Vector FilePath -> Vector (Int, Int) -> [Packed] -> [PackedImageInfo]
