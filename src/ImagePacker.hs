@@ -27,7 +27,8 @@ import Data.Vector (Vector, (!))
 import qualified Data.Vector as V (fromList, toList, zip)
 import qualified Data.Vector.Generic as V (imapM_, slice, copy)
 import qualified Data.Vector.Storable as SV (fromList, unsafeCast)
-import qualified Data.Vector.Storable.Mutable as MV (slice)
+import qualified Data.Vector.Storable.Mutable as MV (slice, unsafeCast, write)
+import Data.Word (Word32)
 
 import ImagePacker.Types
 
@@ -129,13 +130,10 @@ newRect p (w, h) = Rect (w * h) w h p
 writeTexture :: Vector (Picture.Image Picture.PixelRGBA8) -> FilePath -> (Int, Int) -> Packed -> IO ()
 writeTexture sources destination (width, height) (Packed layouts _) = do
     texture <- Picture.newMutableImage width height
-    initializeTexture texture
     mapM_ (render texture) layouts
     Picture.writePng destination =<< Picture.freezeImage texture
 
     where
-    background = Picture.PixelRGBA8 (toEnum 0) (toEnum 0) (toEnum 0) (toEnum 0)
-
     render texture (Layout index p True) =
         writePixels texture p True $ sources ! index
 
@@ -144,6 +142,7 @@ writeTexture sources destination (width, height) (Packed layouts _) = do
 
     writePixels texture (ox, oy) rotated img =
         let imageData = SV.unsafeCast $ Picture.imageData img
+            textureData = MV.unsafeCast $ Picture.mutableImageData texture
             w = Picture.imageWidth img
             h = Picture.imageHeight img
             componentCount = Picture.componentCount (undefined :: Picture.PixelRGBA8)
@@ -155,13 +154,8 @@ writeTexture sources destination (width, height) (Packed layouts _) = do
                 let (y, x) = divMod i w
                     (x', y') = (ox + x, oy + y)
                 in writeAt (x' + y' * width) a
-            writeAt i a = Picture.writePackedPixelAt texture (i * componentCount) (Picture.unpackPixel a)
+            writeAt i a = MV.write textureData i (a :: Word32)
         in V.imapM_ (write rotated) imageData
-
-    initializeTexture texture =
-        mapM_
-            (\(x, y) -> Picture.writePixel texture x y background)
-            [(x, y) | x <- [0..(width - 1)], y <- [0..(height - 1)]]
 
 writeSubImage
     :: (PrimMonad m)
