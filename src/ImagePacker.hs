@@ -38,9 +38,10 @@ loadFiles = fmap V.fromList . mapM loadFile
 
 packImages
     :: (Int, Int)
+    -> Int
     -> Vector (Int, Int)
     -> [Packed]
-packImages textureSize xs =
+packImages (textureWidth, textureHeight) spacing xs =
     List.foldl' pack [] . sortInputs . zip [0..] . V.toList $ xs
 
     where
@@ -49,14 +50,14 @@ packImages textureSize xs =
         Maybe.fromMaybe (ps ++ [newRegion a]) (tryPack a ps)
 
     newRegion (index, (w, h)) =
-        let layouts = Layout index (0, 0) False : []
-            spaces = relocateSpaces (0, 0) (w, h) (newRect (0, 0) textureSize)
+        let layouts = Layout index (spacing, spacing) False : []
+            spaces = relocateSpaces (spacing, spacing) (w + spacing, h + spacing) (newRect (spacing, spacing) (textureWidth - spacing, textureHeight - spacing))
         in Packed layouts spaces
 
     tryPack _ [] = Nothing
 
-    tryPack a (r : rs) =
-        case tryPackOne a r of
+    tryPack a @ (index, (w, h)) (r : rs) =
+        case tryPackOne (index, (w + spacing, h + spacing)) r of
             Just r' -> Just (r' : rs)
             Nothing -> fmap (r :) (tryPack a rs)
 

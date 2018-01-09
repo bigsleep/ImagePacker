@@ -147,6 +147,7 @@ toValidHtmlClassName = T.pack . map toValidChar . dropExtension . T.unpack
 imagePacker
     :: Maybe String
     -> (Int, Int)
+    -> Int
     -> [MetadataSetting]
     -> FilePath
     -> FilePath
@@ -155,6 +156,7 @@ imagePacker
 imagePacker
     sourceExtention
     textureSize
+    spacing
     metadataSettings
     textureFileNameFormat
     inputPath
@@ -163,7 +165,7 @@ imagePacker
         inputFilePaths <- listFilePaths sourceExtention inputPath
         imgs <- loadFiles inputFilePaths
         let sizes = V.map (\x -> (Picture.imageWidth x, Picture.imageHeight x)) imgs
-            rects = packImages textureSize sizes
+            rects = packImages textureSize spacing sizes
             fileNames = V.fromList . map takeFileName $ inputFilePaths
             packedImageInfos = toPackedImageInfos fileNames sizes rects
 
@@ -182,6 +184,7 @@ imagePackerCommand
     -> Flag "s" '["texture-size"] "INT,INT" "output texture size" (Def "1024,1024" String)
     -> Flag "m" '["metadata-settings"] "[{\"metadataType\":\"json\",\"metadataValues\":{}}]" "metadata settings" (Def "[{\"metadataType\":\"json\"}]" String)
     -> Flag "" '["texture-filename"] "STRING" "output texture filename format" (Def "texture%d.png" String)
+    -> Flag "" '["spacing"] "INT" "spacing between images" (Def "1" String)
     -> Arg "INPUT_PATH" String
     -> Arg "OUTPUT_PATH" String
     -> Cmd "image packer" ()
@@ -190,6 +193,7 @@ imagePackerCommand
     textureSize
     metadataSettings
     textureFileNameFormat
+    spacing
     inputPath
     outputPath
     = liftIO $ do
@@ -197,6 +201,7 @@ imagePackerCommand
         imagePacker
             (get sourceExtension)
             (read $ "(" ++ get textureSize ++ ")")
+            (read $ get spacing)
             metadataSettings'
             (get textureFileNameFormat)
             (get inputPath)
