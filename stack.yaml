@@ -1,5 +1,6 @@
-resolver: lts-10.1
+resolver: lts-13.13
 packages:
 - .
 extra-deps:
+- ede-0.2.9
 - optparse-declarative-0.3.0
