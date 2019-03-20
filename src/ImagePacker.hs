@@ -1,4 +1,6 @@
-{-# LANGUAGE DataKinds, FlexibleContexts, OverloadedStrings #-}
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE OverloadedStrings #-}
 module ImagePacker
   ( PackedImageInfo
   , hasIntersection
@@ -11,16 +13,17 @@ module ImagePacker
 import qualified Codec.Picture as Picture
 import qualified Codec.Picture.Types as Picture
 
+import Control.Concurrent.Async (mapConcurrently, mapConcurrently_)
 import Control.Exception (throw)
 import Control.Monad (mplus)
-import Control.Monad.Primitive (PrimMonad(..))
+import Control.Monad.ST (RealWorld)
 
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 
 import Data.Vector (Vector, (!))
 import qualified Data.Vector as V (fromList, toList)
-import qualified Data.Vector.Generic as V (imapM_, slice, copy)
+import qualified Data.Vector.Generic as V (copy, imapM_, slice)
 import qualified Data.Vector.Storable as SV (unsafeCast)
 import qualified Data.Vector.Storable.Mutable as MV (slice, unsafeCast, write)
 import Data.Word (Word32)
@@ -29,7 +32,7 @@ import ImagePacker.Types
 
 
 loadFiles :: [FilePath] -> IO (Vector(Picture.Image Picture.PixelRGBA8))
-loadFiles = fmap V.fromList . mapM loadFile
+loadFiles = fmap V.fromList . mapConcurrently loadFile
     where
     loadFile filepath = do
         a <- Picture.readImage filepath
@@ -75,7 +78,7 @@ tryPackOne (index, (w, h)) (Packed layouts spaces) = do
     s1 = List.find locatable $ zip spaces (repeat False)
     s2 = List.find locatable $ zip spaces (repeat True)
     locatable ((Rect _ rw rh _), False) = rw >= w && rh >= h
-    locatable ((Rect _ rw rh _), True) = rh >= w && rw >= h
+    locatable ((Rect _ rw rh _), True)  = rh >= w && rw >= h
 
 hasIntersection :: (Int, Int) -> (Int, Int) -> Rect -> Bool
 hasIntersection (x, y) (w, h) (Rect _ rw rh (rx, ry)) = dx < w + rw && dy < h + rh
@@ -124,7 +127,7 @@ newRect p (w, h) = Rect (w * h) w h p
 writeTexture :: Vector (Picture.Image Picture.PixelRGBA8) -> FilePath -> (Int, Int) -> Packed -> IO ()
 writeTexture sources destination (width, height) (Packed layouts _) = do
     texture <- Picture.newMutableImage width height
-    mapM_ (render texture) layouts
+    mapConcurrently_ (render texture) layouts
     Picture.writePng destination =<< Picture.freezeImage texture
 
     where
@@ -151,8 +154,7 @@ writeTexture sources destination (width, height) (Packed layouts _) = do
         in V.imapM_ (write rotated) imageData
 
 writeSubImage
-    :: (PrimMonad m)
-    => Picture.MutableImage (PrimState m) Picture.PixelRGBA8 -> (Int, Int) -> Picture.Image Picture.PixelRGBA8 -> m ()
+    :: Picture.MutableImage RealWorld Picture.PixelRGBA8 -> (Int, Int) -> Picture.Image Picture.PixelRGBA8 -> IO ()
 writeSubImage target (x, y) source =
     mapM_ (uncurry V.copy) (zip targetSlices sourceSlices)
     where

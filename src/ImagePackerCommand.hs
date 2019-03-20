@@ -1,4 +1,6 @@
-{-# LANGUAGE DataKinds, OverloadedStrings, TemplateHaskell #-}
+{-# LANGUAGE DataKinds         #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell   #-}
 module ImagePackerCommand
     ( imagePacker
     , imagePackerCommand
@@ -7,6 +9,7 @@ module ImagePackerCommand
 
 import qualified Codec.Picture as Picture
 
+import Control.Concurrent.Async (mapConcurrently, mapConcurrently_)
 import Control.Exception (throw)
 import Control.Monad.IO.Class (liftIO)
 
@@ -16,13 +19,14 @@ import qualified Data.ByteString.Lazy.Char8 as LB (pack)
 import qualified Data.Char
 import qualified Data.Either as Either
 import Data.FileEmbed (embedFile)
-import qualified Data.HashMap.Strict as HM (fromList, lookup, insert, union, map)
+import qualified Data.HashMap.Strict as HM (fromList, insert, lookup, map,
+                                            union)
 import qualified Data.List as List
 import qualified Data.Maybe as Maybe
 import qualified Data.Text as T (Text, pack, unpack)
 import qualified Data.Text.Lazy as LT (Text)
 import qualified Data.Text.Lazy.IO as LT (writeFile)
-import qualified Data.Vector as V (map, fromList)
+import qualified Data.Vector as V (fromList, map)
 
 import ImagePacker
 import ImagePacker.Types
@@ -30,13 +34,14 @@ import ImagePacker.Types
 import Options.Declarative
 
 import System.Directory (createDirectoryIfMissing)
-import System.FilePath ((</>), (<.>), takeFileName, dropExtension)
-import System.FilePath.Find ((==?), (&&?))
+import System.FilePath (dropExtension, takeFileName, (<.>), (</>))
+import System.FilePath.Find ((&&?), (==?))
 import qualified System.FilePath.Find as FManip
 
-import Text.Printf (printf)
+import qualified Text.EDE as EDE (Template, eitherParse, eitherParseFile,
+                                  eitherRenderWith)
 import Text.EDE.Filters ((@:))
-import qualified Text.EDE as EDE (Template, eitherParse, eitherParseFile, eitherRenderWith)
+import Text.Printf (printf)
 
 
 listFilePaths :: Maybe String -> FilePath -> IO [FilePath]
@@ -44,7 +49,7 @@ listFilePaths extOption = FManip.find (FManip.depth ==? 0) (f extOption)
     where
     regularFileFilter = FManip.fileType ==? FManip.RegularFile
     f (Just ext) = FManip.extension ==? ext &&? regularFileFilter
-    f Nothing = regularFileFilter
+    f Nothing    = regularFileFilter
 
 
 renderPackedImageInfo
@@ -87,9 +92,9 @@ outputMetadata textureOutputPath packedImageInfos (MetadataSetting mtype values)
 
 
 data DefinedTemplate = DefinedTemplate
-    { definedTemplateName :: String
+    { definedTemplateName      :: String
     , definedTemplateExtension :: String
-    , definedTemplateTemplate :: EDE.Template
+    , definedTemplateTemplate  :: EDE.Template
     }
 
 
@@ -171,8 +176,8 @@ imagePacker
 
         createDirectoryIfMissing True outputPath
 
-        mapM_ (outputMetadata outputPath packedImageInfos) metadataSettings
-        mapM_ (\(i, rect) -> writeTexture imgs (renderTexturePath i) textureSize rect) ([0..] `zip` rects)
+        mapConcurrently_ (outputMetadata outputPath packedImageInfos) metadataSettings
+        mapConcurrently_ (\(i, rect) -> writeTexture imgs (renderTexturePath i) textureSize rect) ([0..] `zip` rects)
 
     where
     renderTexturePath :: Int -> FilePath
