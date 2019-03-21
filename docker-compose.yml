@@ -1,0 +1,10 @@
+version: "2"
+services:
+  app:
+    image: tkaaad97/haskell-docker:8.6.4
+    command: stack ghci
+    working_dir: /app
+    volumes:
+      - "$PWD:/app"
+      - "$PWD:$PWD"
+      - .stack:/root/.stack
